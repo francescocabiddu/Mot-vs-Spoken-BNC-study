@@ -4,6 +4,9 @@ lapply(lib, require, character.only = TRUE)
 rm(lib)
 
 
+# load homemade funs
+source("homemade_funs.R")
+
 #### prepare mot dfs ####
 # load mot raw and mot_uni
 load("mot_dfs.RData")
@@ -79,21 +82,6 @@ mot_mor_uni %<>%
 # save mot types
 mot_types <- nrow(mot_mor_uni)
 
-# mot_mor_pp_pn with only plurals converted (orthographic types)
-mot_uni_pp_pn <- mot_mor_filter %>%
-  (function(x) {
-    x$word[which(x$pl == TRUE)] <- x$root[which(x$pl == TRUE)]
-    x$word <- unlist(x$word)
-    x
-  }) %>%
-  (function(x) {
-    x[!duplicated(x$word), ] %>%
-    select(word)
-  }) %>%
-  mutate(phon = word %in% mot_phon$word) %>%
-  filter(phon == TRUE) %>%
-  mutate(phon = mot_phon$phon[which(mot_phon$word %in% word)])
-
 # mot_mor last word of utterance
 mot_mor_filter_last <- mot_na %>%
   mutate(string = sapply(string, function(x) {
@@ -109,6 +97,8 @@ mot_mor_filter_last <- mot_na %>%
            str_replace("\\|[A-Z|:]*", ""))
 
 #### mot measures ####
+# syllabic and phonemic length
+
 # summarize gram cat
 
 # assign iphod pp and pn
