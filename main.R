@@ -21,6 +21,12 @@ mot_phon <- mot_uni %>%
   }) %>%
   arrange(word)
 
+# save mot size unfiltered for plurals and root verbs
+# save mot tokens
+mot_tokens <- length(unlist(mot_na$string))
+mot_ort_types <- nrow(mot_phon)
+mot_ph_types <- nrow(mot_uni_len)
+
 # mot mor
 mot_mor_filter <- mot_na %>%
   (function(x) {
@@ -48,10 +54,7 @@ mot_mor_uni <- tibble(word = mot_mor_filter %>%
                               unlist(x$root)
                             })))
 
-# save mot tokens
-mot_tokens <- nrow(mot_mor_uni) # increased because x@x considered separately as in the BNC
-
-# orthographic types, more frequent gram_cat assigned to each word
+# orthographic types, most frequent gram_cat assigned to each word
 mot_mor_uni %<>%
   (function(x) {
     tibble(word = x$word %>%
@@ -80,7 +83,7 @@ mot_mor_uni %<>%
   })
 
 # save mot types
-mot_types <- nrow(mot_mor_uni)
+mot_ort_types_filtered <- nrow(mot_mor_uni)
 
 # mot_mor last word of utterance
 mot_mor_filter_last <- mot_na %>%
@@ -97,11 +100,75 @@ mot_mor_filter_last <- mot_na %>%
            str_replace("\\|[A-Z|:]*", ""))
 
 #### mot measures ####
-# syllabic and phonemic length
+# grammatical categories types
+table_add <- function(table, name1, name2, name3 = NULL) {
+  # add and delete values from a table
+  if (length(name3) == 0) {
+    table[name1] <- table[name1] + table[name2]
+    table <- table[names(table) != name2]
+  } else {
+    table[name1] <- table[name1] + table[name2]
+    table[name3] <- table[name3] + table[name2]
+    table <- table[names(table) != name2]
+  }
+  table
+}
 
-# summarize gram cat
+mot_uni_mor_raw <- mot_mor_uni$cat %>%
+  table() %>%
+  sort(decreasing = T) %>%
+  table_add("N", "N:PROP") %>%
+  table_add("N", "N|-N-CL") %>%
+  table_add("N", "N-CL") %>%
+  table_add("N", "N:LET") %>%
+  table_add("N", "N:PROP|-N-CL") %>%
+  table_add("PRO", "PRO:INDEF") %>%
+  table_add("V", "V:AUX") %>%
+  table_add("N", "N:PROP|-N-CL|V", "V") %>%
+  table_add("N", "N|-N-CL|V", "V") %>%
+  table_add("ADV", "WH:ADV") %>%
+  table_add("PRO", "PRO:DEM") %>%
+  table_add("PRO", "PRO:REFL") %>%
+  table_add("PRO", "PRO:DEM|-N-CL|V", "V") %>%
+  table_add("PRO", "PRO:POSS") %>%
+  table_add("PRO", "PRO|-N-CL") %>%
+  table_add("V", "V|-V-CL|NEG") %>%
+  table_add("PRO", "WH:PRO") %>%
+  table_add("ADV", "ADV:INT") %>%
+  table_add("ADV", "ADV|-N-CL|V", "V") %>%
+  table_add("N", "N|-PL-N-CL") %>%
+  table_add("V", "INF") %>%
+  table_add("PRO", "PRO:INDEF|-N-CL|V", "V") %>%
+  table_add("PRO", "PRO|-N-CL|V", "V") %>%
+  table_add("V", "V|-N-CL|V") %>%
+  table_add("PRO", "WH:PRO|-N-CL|V", "V") %>%
+  table_add("ADV", "ADV|-N-CL") %>%
+  table_add("N", "N:PREP|-N-CL") %>%
+  table_add("N", "N:PROP|-PL-N-CL") %>%
+  table_add("N", "N|-DIM-N-CL|V", "V") %>%
+  table_add("N", "N|-V-CL", "V") %>%
+  table_add("PRO", "PRO:POSS|-N-CL|V", "V") %>%
+  table_add("V", "V|-CL|PRO", "PRO") %>%
+  table_add("V", "V|-PROG~INF") %>%
+  table_add("ADV", "WH:ADV|-N-CL|V", "V") %>%
+  (function(x) {
+    perc <- prop.table(x)*100
+    
+    cats <- c("N", "V", "ADJ", "ADV", "PRO")
+    
+    x[names(x) %in% cats] %>%
+      sort(decreasing = TRUE) %>%
+      (function(x) {
+        x <- tibble(cat = names(x), freq = x, perc = perc[cats])
+        x[x == "N"] <- "NOUN"
+        x[x == "V"] <- "VERB"
+        x[x == "PRO"] <- "PRON"
+        x
+      })
+  }) %>%
+  round_df(2)
 
-# assign iphod pp and pn
+# grammatical categories tokens (last word utterance) more precise than old measure
 
 #### Spoken BNC ####
 # import spokbnc ort keeping root_verb tag  
