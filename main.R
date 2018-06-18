@@ -159,6 +159,8 @@ mot_uni_mor_raw <- mot_mor_uni$cat %>%
     x[names(x) %in% cats] %>%
       sort(decreasing = TRUE) %>%
       (function(x) {
+        cats <- names(x)
+        
         x <- tibble(cat = names(x), freq = x, perc = perc[cats])
         x[x == "N"] <- "NOUN"
         x[x == "V"] <- "VERB"
@@ -168,7 +170,95 @@ mot_uni_mor_raw <- mot_mor_uni$cat %>%
   }) %>%
   round_df(2)
 
-# grammatical categories tokens (last word utterance) more precise than old measure
+# grammatical categories tokens (last word utterance)
+mot_mor_raw_last <- mot_mor_filter_last$mor %>%
+  table() %>%
+  sort(decreasing = T) %>%
+  (function(x) x[x>10]) %>%
+  table_add("PRO", "PRO:DEM") %>%
+  table_add("N", "N:PROP") %>%
+  table_add("N", "N-PL") %>%
+  table_add("PRO", "PRO:INDEF") %>%
+  table_add("V", "V-PROG") %>%
+  table_add("PRO", "WH:PRO") %>%
+  table_add("V", "V&PERF") %>%
+  table_add("V", "V&PRES") %>%
+  table_add("V", "V&3S") %>%
+  table_add("V", "V-PAST") %>%
+  table_add("V", "V:AUX") %>%
+  table_add("V", "V:AUX-V-CL|NEG|NOT") %>%
+  table_add("V", "V-3S") %>%
+  table_add("ADV", "ADV-LY") %>%
+  table_add("ADV", "WH:ADV") %>%
+  table_add("V", "V&PAST") %>%
+  table_add("N", "N-DIM") %>%
+  table_add("PRO", "PRO:EXIST") %>%
+  table_add("ADJ", "ADJ&CP") %>%
+  table_add("N", "N&PL") %>%
+  table_add("N", "N:LET") %>%
+  table_add("ADJ", "ADJ-CP") %>%
+  table_add("V", "V:AUX&PAST") %>%
+  table_add("PRO", "PRO:REFL") %>%
+  table_add("V", "V-PERF") %>%
+  table_add("V", "V:AUX&3S") %>%
+  table_add("PRO", "PRO:INDEF-PL") %>%
+  table_add("V", "INF") %>%
+  table_add("PRO", "PRO:POSS") %>%
+  table_add("N", "N:PROP-N-CL|POSS") %>%
+  table_add("N", "N:PROP--N-CL|POSS") %>%
+  table_add("V", "V&PAST&13S") %>%
+  table_add("V", "V&3S-V-CL|NEG|NOT") %>%
+  table_add("PRO", "PRO-N-CL|POSS") %>%
+  table_add("V", "V:AUX&PAST-V-CL|NEG|NOT") %>%
+  table_add("N", "N-DIM-PL") %>%
+  table_add("V", "V:AUX&3S-V-CL|NEG|NOT") %>%
+  table_add("PRO", "PRO:DEM-N-CL|V|BE&3S", "V") %>%
+  table_add("PRO", "PRO-N-CL|V|BE&3S", "V") %>%
+  table_add("ADJ", "ADJ-SP") %>%
+  table_add("N", "N:PROP-PL") %>%
+  table_add("V", "V:AUX&PRES") %>%
+  table_add("V", "V&1S") %>%
+  table_add("ADJ", "ADJ&SP") %>%
+  table_add("ADV", "ADV:INT") %>%
+  table_add("N", "N--N-CL|POSS") %>%
+  table_add("N", "N-N-CL|POSS") %>%
+  table_add("PRO", "WH:PRO-N-CL|V|BE&3S", "V") %>%
+  table_add("N", "N:PROP-POSS") %>%
+  table_add("PRO", "PRO-N-CL|V|BE&PRES", "V") %>%
+  table_add("V", "V-V-CL|NEG|NOT") %>%
+  table_add("ADJ", "ADJ-PL") %>%
+  table_add("ADJ", "ADJ-LY") %>%
+  table_add("PRO", "PRO-PL") %>%
+  table_add("ADV", "ADV-PL") %>%
+  table_add("V", "V:AUX~NEG|NOT") %>%
+  table_add("PRO", "PRO-N-CL|V:AUX|WILL", "V") %>%
+  table_add("N", "N-N-CL|V|BE&3S", "V") %>%
+  table_add("V", "V:AUX&PAST&13S") %>%
+  table_add("ADV", "WH:ADV-N-CL|V|BE&3S", "V") %>%
+  table_add("V", "V-3S-V-CL|NEG|NOT") %>%
+  table_add("V", "V&PAST&13S-V-CL|NEG|NOT") %>%
+  table_add("N", "N:PROP-N-CL|V|BE&3S", "V") %>%
+  table_add("PRO", "PRO:INDEF-N-CL|V|BE&3S", "V") %>%
+  table_add("V", "V:AUX&1S") %>%
+  table_add("V", "V&PAST-V-CL|NEG|NOT") %>%
+  (function(x) {
+    perc <- prop.table(x)*100
+    
+    cats <- c("N", "V", "ADJ", "ADV", "PRO")
+    
+    x[names(x) %in% cats] %>%
+      sort(decreasing = TRUE) %>%
+      (function(x) {
+        cats <- names(x)
+        
+        x <- tibble(cat = names(x), freq = x, perc = perc[cats])
+        x[x == "N"] <- "NOUN"
+        x[x == "V"] <- "VERB"
+        x[x == "PRO"] <- "PRON"
+        x
+      })
+  }) %>%
+  round_df(2)
 
 #### Spoken BNC ####
 # import spokbnc ort keeping root_verb tag  
