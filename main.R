@@ -261,6 +261,23 @@ mot_mor_raw_last <- mot_mor_filter_last$mor %>%
   round_df(2)
 
 #### Spoken BNC ####
-# import spokbnc ort keeping root_verb tag  
+# import spok_bnc texts
+spok_bnc_paths <- read_tsv("spoken_bnc_path.txt", col_names = F) %>%
+  mutate(name = `X1`,
+         path = str_replace(`X1`, "$", ".txt") %>%
+           str_replace("^", paste("/Users/francesco/Documents/BNC/texts\ txt", "/", sep = ""))) %>%
+  select(name, path)
 
-# match spokbnc ort with phonemic file
+spok_bnc_txt_raw <- spok_bnc_paths$path %>%
+  sapply(function(x) {
+    read.delim(x, header = F, stringsAsFactors = F)
+  })
+
+spok_bnc_txt <- spok_bnc_txt_raw %>%
+  sapply(function(x) {
+    str_extract_all(x, "c5=[^ ]* hw=[a-zA-Z]* pos=[A-Z]+>[^<]*<")
+  }) %>%
+  (function(x) {
+    names(x) <- spok_bnc_paths$name
+    x
+  })
