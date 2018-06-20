@@ -1,8 +1,7 @@
 # load libraries
-lib <- c("magrittr", "tidyverse")
+lib <- c("magrittr", "tidyverse", "fastmatch")
 lapply(lib, require, character.only = TRUE)
 rm(lib)
-
 
 # load homemade funs
 source("homemade_funs.R")
@@ -42,7 +41,7 @@ mot_mor_filter <- mot_na %>%
            sapply(as.vector),
          mor = mot_mor$mor) %>%
   arrange(word)
- 
+
 # convert plurals, convert to root verbs 
 mot_mor_uni <- tibble(word = mot_mor_filter %>%
                         filter(pl == FALSE, verb == FALSE) %>%
@@ -70,7 +69,7 @@ mot_mor_uni %<>%
            sort(decreasing = T))[1] %>%
           names()
       })
-      
+    
   }) %>%
     as.character() %>%
     (function(x) {
@@ -89,10 +88,10 @@ mot_ort_types_filtered <- nrow(mot_mor_uni)
 mot_mor_filter_last <- mot_na %>%
   mutate(string = sapply(string, function(x) {
     x[length(x)]
-    }),
-    mor = sapply(mor, function(x) {
-      x[length(x)]
-    })) %>%
+  }),
+  mor = sapply(mor, function(x) {
+    x[length(x)]
+  })) %>%
   select(word = string, mor_raw = mor) %>%
   mutate(pl = grepl("^N\\|.*PL$", mor_raw),
          verb = grepl("[^A-Z]V[^A-Z]|^V[^A-Z]", mor_raw),
@@ -268,16 +267,77 @@ spok_bnc_paths <- read_tsv("spoken_bnc_path.txt", col_names = F) %>%
            str_replace("^", paste("/Users/francesco/Documents/BNC/texts\ txt", "/", sep = ""))) %>%
   select(name, path)
 
+# raw spoken texts
 spok_bnc_txt_raw <- spok_bnc_paths$path %>%
   sapply(function(x) {
     read.delim(x, header = F, stringsAsFactors = F)
   })
 
+# clean raw texts, with each utterance as tibble (word as observation)
 spok_bnc_txt <- spok_bnc_txt_raw %>%
   sapply(function(x) {
-    str_extract_all(x, "c5=[^ ]* hw=[a-zA-Z]* pos=[A-Z]+>[^<]*<")
+    str_extract_all(x, "c5=[^ ]* hw=[^ ]* pos=[^>]*>[^<]*<")
   }) %>%
   (function(x) {
     names(x) <- spok_bnc_paths$name
     x
+  }) %>%
+  sapply(function(x) {
+    x[lapply(x, length) > 0]
+  }) %>%
+  unlist(recursive = FALSE) %>%
+  lapply(function(z) {
+    z %>%
+      (function(x) {
+        tibble(c5 = str_extract(x, "c5=[^ ]*") %>%
+                 str_replace("c5=", ""),
+               hw = str_extract(x, "hw=[^ ]*") %>%
+                 str_replace("hw=", ""),
+               pos = str_extract(x, "pos=[^>]*") %>%
+                 str_replace("pos=", ""),
+               word = str_extract(x, ">[^< ]*") %>%
+                 str_replace(">", "") %>%
+                 tolower())
+      })
+  })
+
+# import and clean phonetic spok_bnc
+spok_bnc_phon <- "spoken_bnc-filt-orth-and-phon.txt" %>%
+  read_tsv(col_names = F) %>%
+  (function(x) {
+    x$utt <- sapply(x$`X1`, str_extract_all, "\\([^)]*\\)")
+    x <- tibble(word_phon = x$utt %>%
+                  unlist() %>%
+                  str_replace("\\(", "") %>%
+                  str_replace("\\)", "") %>%
+                  str_replace_all("[0-9]{1}", "")) %>%
+      separate(word_phon, c("word", "phon"), sep = " ") %>%
+      (function(y) {
+        y[!duplicated(y$word), ]
+      }) %>%
+      arrange(word)
+    x
+  }) %>%
+  mutate(phon = phon %>%
+           (function(x) {
+             x[x == "UNKNOWN"] <- NA
+             x
+           }),
+         word = str_replace(word, "@", "'") %>%
+           tolower()) %>%
+  na.omit() %>%
+  filter(!word %in% c("", "_there"))
+
+# add phonetic var to each utterance
+spok_bnc_txt %<>%
+  lapply(function(x) {
+    x %>%
+      mutate(phon = spok_bnc_phon$phon[fmatch(word, spok_bnc_phon$word)])
+      })
+
+# filter spok_bnc_txt for available phonetic forms
+spok_bnc_txt_filtered <- spok_bnc_txt %>%
+  lapply(function(y) {
+    y %>%
+      na.omit()
   })
