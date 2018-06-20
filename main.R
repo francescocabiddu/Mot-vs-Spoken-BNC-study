@@ -259,7 +259,7 @@ mot_mor_raw_last <- mot_mor_filter_last$mor %>%
   }) %>%
   round_df(2)
 
-#### Spoken BNC ####
+#### prepare Spoken BNC ####
 # import spok_bnc texts
 spok_bnc_paths <- read_tsv("spoken_bnc_path.txt", col_names = F) %>%
   mutate(name = `X1`,
@@ -340,4 +340,19 @@ spok_bnc_txt_filtered <- spok_bnc_txt %>%
   lapply(function(y) {
     y %>%
       na.omit()
+  })
+
+#### Spoken BNC sample ####
+# spok_bnc sample matching number of maternal tokens
+set.seed(1988)
+spok_bnc_ran <- spok_bnc_txt_filtered %>%
+  sapply(nrow) %>%
+  sample() %>%
+  cumsum() %>%
+  (function(x) {
+    y <- x - mot_tokens
+    y <- y[y > -1]
+    last_pos <- which(names(x) == names(y[1]))
+    x <- x[1:last_pos]
+    spok_bnc_txt_filtered[names(x)]
   })
