@@ -1,5 +1,6 @@
 # load libraries
-lib <- c("magrittr", "tidyverse", "fastmatch")
+lib <- c("magrittr", "tidyverse", 
+         "data.table", "fastmatch")
 lapply(lib, require, character.only = TRUE)
 rm(lib)
 
@@ -99,6 +100,9 @@ mot_mor_filter_last <- mot_na %>%
            str_replace("\\|[A-Z|:]*", ""))
 
 #### mot measures ####
+# summary
+summary_mot_text <- 
+
 # grammatical categories types
 table_add <- function(table, name1, name2, name3 = NULL) {
   # add and delete values from a table
@@ -355,4 +359,74 @@ spok_bnc_ran <- spok_bnc_txt_filtered %>%
     last_pos <- which(names(x) == names(y[1]))
     x <- x[1:last_pos]
     spok_bnc_txt_filtered[names(x)]
+  })
+
+#### Spoken BNC measures ####
+# summary 
+summary_spok_bnc_texts <- function(text, name1, name2) {
+  text %>%
+    (function(x) {
+      x %>%
+        rbindlist %>% 
+        (function(y) {
+          tibble(Transcription = c(name1, name2), 
+                 Tokens = c(nrow(y), nrow(na.omit(y))),
+                 Types = y$word %>% 
+                   unique() %>%
+                   length() %>%
+                   c(y$phon %>%
+                       na.omit() %>%
+                       unique() %>%
+                       length()
+                     )
+                 )
+          }) %>%
+        cbind(x %>%
+                (function(z) {
+                  sapply(z, nrow) %>%
+                    (function(y) {
+                      tibble(MLU = mean(y),
+                             `SD (MLU)` = sd(y),
+                             `Median (MLU)` = median(y)
+                             )
+                      }
+                     ) %>%
+                    rbind(sapply(z, function(j) {nrow(na.omit(j))}) %>%
+                            (function(y) {
+                              tibble(MLU = mean(y),
+                                     `SD (MLU)` = sd(y),
+                                     `Median (MLU)` = median(y))
+                              })
+                          )
+                })
+               )
+    })
+} 
+
+summary_texts <- rbind(
+  tibble(Transcription = "Mothers, Orthographic",
+         Tokens = mot_tokens,
+         Types = mot_ort_types,
+         MLU = mlu_mot$mlu[nrow(mlu_mot)],
+         `SD (MLU)` = mlu_mot$sd_lu[nrow(mlu_mot)],
+         `Median (MLU)` = mlu_mot$median_lu[nrow(mlu_mot)]) %>%
+    rbind(tibble(Transcription = "Mothers, Phonetic",
+                 Tokens = mot_tokens,
+                 Types = mot_ph_types,
+                 MLU = mlu_mot$mlu[nrow(mlu_mot)],
+                 `SD (MLU)` = mlu_mot$sd_lu[nrow(mlu_mot)],
+                 `Median (MLU)` = mlu_mot$median_lu[nrow(mlu_mot)])),
+  summary_spok_bnc_texts(spok_bnc_txt, 
+                         "BNC-all-raw, Orthographic",
+                         "BNC-all-raw, Phonetic"),
+  summary_spok_bnc_texts(spok_bnc_txt_filtered, 
+                         "BNC-all, Orthographic",
+                         "BNC-all, Phonetic"),
+  summary_spok_bnc_texts(spok_bnc_ran, 
+                         "BNC-match, Orthographic",
+                         "BNC-match, Phonetic")
+) %>%
+  round_df(2) %>%
+  (function(x) {
+    x[c(1,3,5,7,2,4,6,8),]
   })
