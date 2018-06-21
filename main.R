@@ -169,7 +169,9 @@ mot_uni_mor_raw <- mot_mor_uni$cat %>%
         x[x == "V"] <- "VERB"
         x[x == "PRO"] <- "PRON"
         x
-      })
+      }) %>%
+      mutate(freq = as.numeric(freq),
+             perc = as.numeric(perc))
   }) %>%
   round_df(2)
 
@@ -259,7 +261,9 @@ mot_mor_raw_last <- mot_mor_filter_last$mor %>%
         x[x == "V"] <- "VERB"
         x[x == "PRO"] <- "PRON"
         x
-      })
+      })  %>%
+      mutate(freq = as.numeric(freq),
+             perc = as.numeric(perc))
   }) %>%
   round_df(2)
 
@@ -430,3 +434,107 @@ summary_texts <- rbind(
   (function(x) {
     x[c(1,3,5,7,2,4,6,8),]
   })
+
+# grammatical categories (types)
+bnc_all <- spok_bnc_txt_filtered %>%
+  rbindlist()
+
+bnc_match <- spok_bnc_ran %>%
+  rbindlist()
+
+freq_cat <- function(w, df, hw = FALSE) {
+  if (hw == FALSE) {
+    df %<>%
+      filter(word == w)
+  } else {
+    df %<>%
+      filter(hw == w)
+  }
+  df %>%
+    group_by(pos) %>%
+    summarize(n()) %>%
+    filter(`n()` == max(`n()`)) %>%
+    (function(x) x$pos) 
+}
+
+# most frequent cat for each bnc-all types
+bnc_all_freq_cats <- bnc_all %>%
+  (function(x) {
+    x$word %>%
+      unique() %>%
+      (function(y) {
+        tibble(word = y %>% sort())
+      })
+  }) %>%
+  mutate(cat = sapply(word, freq_cat, bnc_all))
+
+# table of precentages (plurals and verbs converted)
+ort_types <- function(df) {
+  df %>%
+    (function(x) {
+      # convert to singular and root verbs
+      x %>%
+        filter(c5 == "NN2" | pos == "VERB") %>%
+        (function(y) {
+          y$hw
+        }) %>%
+        (function(y) {
+          tibble(word = y %>%
+                   c(x %>%
+                       filter(c5 != "NN2" & pos != "VERB") %>%
+                       (function(z) {
+                         z$word
+                       })))
+        })
+    }) %>%
+    (function(x) {
+      # take orthographic types
+      tibble(word = unique(x$word) %>% 
+               sort()) %>%
+        (function(y) {
+          y[!grepl("\\*", y$word),]
+        })
+    }) %>%
+    mutate(cat = bnc_all_freq_cats$cat[fmatch(word, bnc_all_freq_cats$word)]) %>%
+    (function(x) {
+      x1 <- x %>% na.omit()
+      
+      x2 <- x %>% filter(is.na(cat)) %>%
+        mutate(cat = sapply(word, function(x) {
+          freq_cat(x, bnc_all, hw = TRUE)
+        })) 
+      
+      x1 %>%
+        rbind(x2) %>%
+        arrange(word)
+    }) %>%
+    (function(x) {
+      x$cat %>%
+        unlist() %>%
+        table() %>% 
+        sort(decreasing = T) %>%
+        (function(x) {
+          perc <- prop.table(x)*100
+          
+          cats <- c("SUBST", "VERB", "ADJ", "ADV", "PRON")
+          
+          x[names(x) %in% cats] %>%
+            sort(decreasing = TRUE) %>%
+            (function(y) {
+              cats <- names(y)
+              
+              y <- tibble(cat = names(y), freq = y, perc = perc[cats])
+              y[y == "SUBST"] <- "NOUN"
+              y
+            })  %>%
+            mutate(freq = as.numeric(freq),
+                   perc = as.numeric(perc))
+        }) %>%
+        round_df(2)
+    })
+}
+
+bnc_all_ort_types <- ort_types(bnc_all)
+bnc_match_ort_types <- ort_types(bnc_match)
+
+# grammtical categories (word tokens)
