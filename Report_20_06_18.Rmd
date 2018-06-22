@@ -79,3 +79,164 @@ summary_texts %>%
 ```
 
 <br>
+
+### Word categories
+
+For word types (see Figure 1 below), plural common nouns and verbs were considered in their root forms ("singular common noun" and "to-infinitive" forms respectively).
+
+<br>
+
+```{r gram_types, echo=FALSE, warning=FALSE}
+mot_uni_mor_raw$cat %<>% factor(levels = mot_uni_mor_raw$cat,
+                                ordered = T)
+bnc_all_ort_types$cat %<>% factor(levels = mot_uni_mor_raw$cat,
+                                ordered = T)
+bnc_match_ort_types$cat %<>% factor(levels = mot_uni_mor_raw$cat,
+                                ordered = T)
+
+plot_gram_types <- function(df, title) {
+  ggplot(df, aes(x=cat, y=perc))+
+  geom_bar(position="dodge",stat="identity")+
+  labs(x = "Grammatical categories", y = "Word types (%)") +
+  ggtitle(title)+
+  theme(axis.text.x = element_text(size=5,angle = 40, hjust = 1),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(size=8))+
+  scale_y_continuous(limits = c(0,62.5))
+}
+
+plot1 <- plot_gram_types(mot_uni_mor_raw, "Mothers")
+plot2 <- plot_gram_types(bnc_match_ort_types, "BNC-match")
+plot3 <- plot_gram_types(bnc_all_ort_types, "BNC-all")
+
+grid.arrange(arrangeGrob(plot1,plot2,plot3,
+                         left = textGrob("Word types (%)", rot = 90, vjust = 1),
+                         bottom = textGrob("Grammatical categories", rot = 0, vjust = 0.5),
+                         nrow = 1))
+
+```
+
+**Figure 1.** Relative word type frequencies of nouns, verbs, adjectives (Adj), adverbs (Adv) and pronouns (Pron) for Mothers, BNC-match and BNC-all. 
+
+<br>
+
+#### Table 2.
+
+Chi-squared analyses comparing the mothers and BNC-match for number of nouns, verbs, adjectives, adverbs and pronouns, for word types (left) and word tokens (right).
+
+```{r echo=FALSE, warning=FALSE}
+prop_test <- function(df_mot, df_bnc_match, cat_name, word_type) {
+  n_prop_test <- function(df) {
+    ( sum(df$freq) / (df$perc %>% sum()) ) * 100
+  }
+  
+  n_mot <- n_prop_test(df_mot)
+  n_bnc_match <- n_prop_test(df_bnc_match)
+  
+  prop_test <- prop.test(x = c(df_mot$freq[which(df_mot$cat == cat_name)], 
+                df_bnc_match$freq[which(df_bnc_match$cat == cat_name)]),
+                n = c(n_mot, n_bnc_match),
+                correct = FALSE)
+  
+  tibble(!!word_type := cat_name,
+         `λ^2` = prop_test$statistic,
+         df = prop_test$parameter,
+         p = prop_test$p.value)
+}
+
+prop_table <- function(df_mot, df_bnc_match, word_type) {
+  prop_test(df_mot, df_bnc_match, "NOUN", word_type) %>%
+  rbind(prop_test(df_mot, df_bnc_match, "VERB", word_type)) %>%
+  rbind(prop_test(df_mot, df_bnc_match, "ADJ", word_type)) %>%
+  rbind(prop_test(df_mot, df_bnc_match, "ADV", word_type)) %>%
+  rbind(prop_test(df_mot, df_bnc_match, "PRON", word_type)) %>%
+  mutate(`λ^2` = round(`λ^2`, 2),
+         p = ifelse(p < 0.001, "<0.001", round(p, 2)))
+}
+
+prop_table(mot_uni_mor_raw, bnc_match_ort_types, "Word types") %>%
+  cbind(prop_table(mot_mor_raw, bnc_match_gram_tokens, "Word tokens")) %>%
+  kable()
+```
+
+
+<br>
+
+```{r gram_tokens, echo=FALSE, warning=FALSE}
+mot_mor_raw$cat %<>% factor(levels = mot_mor_raw$cat, ordered = T)
+bnc_all_gram_tokens$cat %<>% factor(levels = mot_mor_raw$cat, ordered = T)
+bnc_match_gram_tokens$cat %<>% factor(levels = mot_mor_raw$cat, ordered = T)
+
+plot_gram_tokens <- function(df, title) {
+  ggplot(df, aes(x=cat, y=perc))+
+  geom_bar(position="dodge",stat="identity")+
+  labs(x = "Grammatical categories", y = "Word tokens (%)") +
+  ggtitle(title)+
+  theme(axis.text.x = element_text(size=5,angle = 40, hjust = 1),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(size=8))+
+  scale_y_continuous(limits = c(0,35))
+}
+  
+plot1 <- plot_gram_tokens(mot_mor_raw, "Mothers")
+plot2 <- plot_gram_tokens(bnc_match_gram_tokens, "BNC-match")
+plot3 <- plot_gram_tokens(bnc_all_gram_tokens, "BNC-all")
+
+grid.arrange(arrangeGrob(plot1,plot2,plot3,
+                         left = textGrob("Word tokens (%)", rot = 90, vjust = 1),
+                         bottom = textGrob("Grammatical categories", rot = 0, vjust = 0.5),
+                         nrow = 1))
+
+```
+
+**Figure 2.** Relative word token frequencies of verbs, pronouns (Pron), nouns, adverbs (Adv) and adjectives (Adj) for mothers, BNC-match and BNC-all.
+
+<br>
+
+### Utterance-final word categories
+
+```{r gram_last_tokens, echo=FALSE, warning=FALSE}
+mot_mor_raw_last$cat %<>% factor(levels = mot_mor_raw_last$cat, ordered = T)
+bnc_all_last_gram_tokens$cat %<>% factor(levels = mot_mor_raw_last$cat, ordered = T)
+bnc_match_last_gram_tokens$cat %<>% factor(levels = mot_mor_raw_last$cat, ordered = T)
+
+plot_gram_tokens <- function(df, title) {
+  ggplot(df, aes(x=cat, y=perc))+
+  geom_bar(position="dodge",stat="identity")+
+  labs(x = "Grammatical categories", y = "Word tokens (%)") +
+  ggtitle(title)+
+  theme(axis.text.x = element_text(size=5,angle = 40, hjust = 1),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(size=8))+
+  scale_y_continuous(limits = c(0,35))
+}
+  
+plot1 <- plot_gram_tokens(mot_mor_raw_last, "Mothers")
+plot2 <- plot_gram_tokens(bnc_match_last_gram_tokens, "BNC-match")
+plot3 <- plot_gram_tokens(bnc_all_last_gram_tokens, "BNC-all")
+
+grid.arrange(arrangeGrob(plot1,plot2,plot3,
+                         left = textGrob("Word tokens (%)", rot = 90, vjust = 1),
+                         bottom = textGrob("Grammatical categories", rot = 0, vjust = 0.5),
+                         nrow = 1))
+
+```
+
+**Figure 3.** Relative word token frequencies of nouns, pronouns (Pron), verbs, adverbs (Adv) and adjectives (Adj) for mothers, BNC-match and BNC-all.
+
+<br>
+
+#### Table 3. 
+
+Chi-squared analyses comparing the mothers and BNC-match for number of nouns, pronouns, verbs, adverbs and adjectives occurring in utterance-final position. 
+
+```{r echo=FALSE, warning=FALSE}
+prop_table(mot_mor_raw_last, bnc_match_last_gram_tokens, "Word tokens") %>%
+  slice(c(1,5,2,4,3)) %>%
+  kable()
+```
+
+
