@@ -1,0 +1,81 @@
+---
+title: "MOT vs Spoken BNC results"
+output:
+  word_document:
+    reference_docx: template.docx
+  pdf_document: default
+
+---
+
+Date: `r Sys.Date()`
+
+<br>
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE, include=FALSE}
+lib <- c("tidyverse", "magrittr", "knitr", "gridExtra", "grid")
+lapply(lib, require, character.only = TRUE)
+load(file="ws_report.RData")
+```
+
+```{r echo = FALSE}
+grid_arrange_shared_legend <- function(..., nrow = 1,y_title, x_size, y_size,widths1 = 2, widths2=0.2,hjust1=1,vjust1=0, x_title, ncol = length(list(...)), position = c("bottom", "right")) {
+
+  plots <- list(...)
+  position <- match.arg(position)
+  g <- ggplotGrob(plots[[1]] + theme(legend.position = position))$grobs
+  legend <- g[[which(sapply(g, function(x) x$name) == "guide-box")]]
+  lheight <- sum(legend$height)
+  lwidth <- sum(legend$width)
+  gl <- lapply(plots, function(x) x + theme(legend.position = "none"))
+  gl <- c(gl, nrow = nrow, ncol = ncol)
+
+  combined <- switch(position,
+                     "bottom" = arrangeGrob(do.call(arrangeGrob, gl),
+                                            legend,
+                                            ncol = 1,
+                                            heights = unit.c(unit(1, "npc") - lheight, lheight)),
+                     "right" = arrangeGrob(do.call(arrangeGrob, gl),
+                                           legend,
+                                           ncol = 2,
+                                           widths = c(widths1, widths2),
+                                           left=textGrob(y_title, gp=gpar(fontsize=y_size), rot = 90),
+                                           bottom=textGrob(x_title, gp=gpar(fontsize=x_size), vjust = vjust1, hjust = hjust1)))
+  grid.newpage()
+  grid.draw(combined)
+
+}
+
+round_df <- function(df, digits =2) {
+  nums <- vapply(df, is.numeric, FUN.VALUE = logical(1))
+
+  df[,nums] <- round(df[,nums], digits = digits)
+
+  (df)
+}
+```
+
+```{r opts, echo = FALSE}
+knitr::opts_chunk$set(
+  fig.path = "images/"
+)
+```
+
+#### Table 1.
+
+```{r echo=FALSE }
+BNC_raw_diff <- summary_texts %>%
+  (function(x) {
+    100 - ((x$Tokens[which(x$Transcription == "BNC-all, Orthographic")] / 
+              x$Tokens[which(x$Transcription == "BNC-all-raw, Orthographic")]) * 100)
+  }) %>%
+  round(2)
+```
+
+Total number of orthographic and phonetic tokens and types in mothers and BNC samples, together with Mean Length of Utterance (MLU) information (NOTE. In the table, BNC-all-raw refers to the raw Spoken BNC which includes `r BNC_raw_diff`% of words not available in their phonetic form. Only BNC-all and BNC-match will be used in the following analyses).
+
+```{r echo=FALSE }
+summary_texts %>%
+  kable()
+```
+
+<br>
