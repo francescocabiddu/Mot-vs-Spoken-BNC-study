@@ -100,8 +100,17 @@ mot_mor_filter_last <- mot_na %>%
            str_replace("\\|[A-Z|:]*", ""))
 
 #### mot measures ####
-# summary
-summary_mot_text <- 
+# grammatical categories tokens
+mot_mor_raw %<>% 
+  as_tibble() %>%
+  mutate(cat = as.character(cat)) %>%
+  filter(cat %in% c("V", "PRO", "N", "ADV", "ADJ")) %>%
+  (function(x) {
+    x[x == "V"] <- "VERB"
+    x[x == "PRO"] <- "PRON"
+    x[x == "N"] <- "NOUN"
+    x
+  })
 
 # grammatical categories types
 table_add <- function(table, name1, name2, name3 = NULL) {
@@ -341,7 +350,7 @@ spok_bnc_txt %<>%
   lapply(function(x) {
     x %>%
       mutate(phon = spok_bnc_phon$phon[fmatch(word, spok_bnc_phon$word)])
-      })
+  })
 
 # filter spok_bnc_txt for available phonetic forms
 spok_bnc_txt_filtered <- spok_bnc_txt %>%
@@ -382,9 +391,9 @@ summary_spok_bnc_texts <- function(text, name1, name2) {
                        na.omit() %>%
                        unique() %>%
                        length()
-                     )
-                 )
-          }) %>%
+                   )
+          )
+        }) %>%
         cbind(x %>%
                 (function(z) {
                   sapply(z, nrow) %>%
@@ -392,18 +401,18 @@ summary_spok_bnc_texts <- function(text, name1, name2) {
                       tibble(MLU = mean(y),
                              `SD (MLU)` = sd(y),
                              `Median (MLU)` = median(y)
-                             )
-                      }
-                     ) %>%
+                      )
+                    }
+                    ) %>%
                     rbind(sapply(z, function(j) {nrow(na.omit(j))}) %>%
                             (function(y) {
                               tibble(MLU = mean(y),
                                      `SD (MLU)` = sd(y),
                                      `Median (MLU)` = median(y))
-                              })
-                          )
+                            })
+                    )
                 })
-               )
+        )
     })
 } 
 
@@ -537,4 +546,53 @@ ort_types <- function(df) {
 bnc_all_ort_types <- ort_types(bnc_all)
 bnc_match_ort_types <- ort_types(bnc_match)
 
-# grammtical categories (word tokens)
+# grammatical categories (word tokens)
+gram_bnc_tokens <- function(df) {
+  df %>%
+    (function(x) {
+      x$pos %>%
+        table() %>% 
+        sort(decreasing = T) %>%
+        (function(x) {
+          perc <- prop.table(x)*100
+          
+          cats <- c("SUBST", "VERB", "ADJ", "ADV", "PRON")
+          
+          x[names(x) %in% cats] %>%
+            sort(decreasing = TRUE) %>%
+            (function(y) {
+              cats <- names(y)
+              
+              y <- tibble(cat = names(y), freq = y, perc = perc[cats])
+              y[y == "SUBST"] <- "NOUN"
+              y
+            })  %>%
+            mutate(freq = as.numeric(freq),
+                   perc = as.numeric(perc))
+        })
+    }) %>%
+    round_df(2)
+}
+
+bnc_all_gram_tokens <- gram_bnc_tokens(bnc_all)
+bnc_match_gram_tokens <- gram_bnc_tokens(bnc_match)
+
+# grammatical categories tokens (last word utterance)
+set.seed(1995)
+bnc_match_last <- spok_bnc_txt_filtered %>%
+  sample(nrow(mot_mor_filter_last)) %>%
+  lapply(function(x) {
+    x %>%
+      filter(row_number()==n())
+  }) %>%
+  rbindlist()
+
+bnc_all_last <- spok_bnc_txt_filtered %>%
+  lapply(function(x) {
+    x %>%
+      filter(row_number()==n())
+  }) %>%
+  rbindlist()
+
+bnc_match_last_gram_tokens <- gram_bnc_tokens(bnc_match_last)
+bnc_all_last_gram_tokens <- gram_bnc_tokens(bnc_match_last)
