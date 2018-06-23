@@ -619,6 +619,7 @@ word_length <- function(x) {
                len
              }))
 }
+
 iphod_measure <- function(x, measure, name_measure, iphod_measure) {
   measure <- enquo(measure)
   
@@ -687,3 +688,44 @@ bnc_match_ph <- bnc_match %>%
   df_ph()
 bnc_all_ph <- bnc_all %>%
   df_ph()
+
+# word frequency
+bncs_mot_comm <- tibble(word = Reduce(intersect, list(tolower(unlist(mot$string)),
+                                                      bnc_all$word,
+                                                      bnc_match$word))) %>%
+  (function(x) {
+    x %>%
+      mutate(freq = sapply(word, function(y) {
+        bnc_all %>%
+          filter(word == y) %>%
+          nrow()
+      }),
+      rel_freq_mot = sapply(word, function(y) {
+        mot_string <- tibble(word = unlist(mot$string))
+        
+        raw_freq <- mot_string %>%
+          filter(tolower(word) == y) %>%
+          nrow()
+        
+        raw_freq/nrow(mot_string)
+      }),
+      rel_freq_bnc_sub = sapply(word, function(y) {
+        raw_freq <- bnc_match %>%
+          filter(tolower(word) == y) %>%
+          nrow()
+        
+        raw_freq/nrow(bnc_match)
+      }),
+      rel_freq_bnc = freq/nrow(bnc_all))
+  })
+
+write.table(bncs_mot_comm$word, "bncs_mot_comm.txt", 
+            sep = "\t", quote = F, row.names = F, col.names = F)
+cpwd <- "bncs_mot_comm_cpwd_freq.txt" %>%
+  read_tsv()
+
+# filter bncs for words found in cpwd
+bncs_mot_comm_fil <- bncs_mot_comm %>%
+  filter(word %in% cpwd$word) %>%
+  arrange(word) %>%
+  mutate(freq_cpwd=cpwd$freq)
