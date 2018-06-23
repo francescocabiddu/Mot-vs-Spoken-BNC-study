@@ -9,8 +9,6 @@ output:
 
 Date: `r Sys.Date()`
 
-<br>
-
 ```{r echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE, include=FALSE}
 lib <- c("tidyverse", "magrittr", "knitr", "gridExtra", "grid")
 lapply(lib, require, character.only = TRUE)
@@ -60,8 +58,6 @@ knitr::opts_chunk$set(
 )
 ```
 
-#### Table 1.
-
 ```{r echo=FALSE }
 BNC_raw_diff <- summary_texts %>%
   (function(x) {
@@ -71,7 +67,15 @@ BNC_raw_diff <- summary_texts %>%
   round(2)
 ```
 
-Total number of orthographic and phonetic tokens and types in mothers and BNC samples, together with Mean Length of Utterance (MLU) information (NOTE. In the table, BNC-all-raw refers to the raw Spoken BNC which includes `r BNC_raw_diff`% of words not available in their phonetic form. Only BNC-all and BNC-match will be used in the following analyses).
+<br>
+
+NOTE. All words in the complete Spoken BNC (BNC-all-raw, *N* = `r as.character(summary_texts$Tokens[2])`) were phonetically converted. `r BNC_raw_diff`% of words of the BNC-all-raw weren't available in their phonetic forms, resulting in a smaller subset of tokens (BNC-all, *N* = `r as.character(summary_texts$Tokens[3])`). Only BNC-all was used for the following analyses.
+
+<br>
+
+#### Table 1.
+
+Total number of orthographic and phonetic tokens and types in mothers and BNC samples, together with Mean Length of Utterance (MLU) information (NOTE. In the table, BNC-all-raw refers to the raw Spoken BNC which includes `r BNC_raw_diff`% of words not available in their phonetic form. Only BNC-all and BNC-match were used in the following analyses).
 
 ```{r echo=FALSE }
 summary_texts %>%
@@ -87,12 +91,13 @@ For word types (see Figure 1 below), plural common nouns and verbs were consider
 <br>
 
 ```{r gram_types, echo=FALSE, warning=FALSE}
-mot_uni_mor_raw$cat %<>% factor(levels = mot_uni_mor_raw$cat,
-                                ordered = T)
-bnc_all_ort_types$cat %<>% factor(levels = mot_uni_mor_raw$cat,
-                                ordered = T)
-bnc_match_ort_types$cat %<>% factor(levels = mot_uni_mor_raw$cat,
-                                ordered = T)
+ord_factor <- function(mot_cat) {
+  mot_cat %>% factor(levels = mot_cat, ordered = T)
+}
+
+mot_uni_mor_raw$cat %<>% ord_factor()
+bnc_all_ort_types$cat <- ord_factor(mot_uni_mor_raw$cat)
+bnc_match_ort_types$cat <- ord_factor(mot_uni_mor_raw$cat)
 
 plot_gram_types <- function(df, title) {
   ggplot(df, aes(x=cat, y=perc))+
@@ -164,9 +169,9 @@ prop_table(mot_uni_mor_raw, bnc_match_ort_types, "Word types") %>%
 <br>
 
 ```{r gram_tokens, echo=FALSE, warning=FALSE}
-mot_mor_raw$cat %<>% factor(levels = mot_mor_raw$cat, ordered = T)
-bnc_all_gram_tokens$cat %<>% factor(levels = mot_mor_raw$cat, ordered = T)
-bnc_match_gram_tokens$cat %<>% factor(levels = mot_mor_raw$cat, ordered = T)
+mot_mor_raw$cat %<>% ord_factor()
+bnc_all_gram_tokens$cat <- ord_factor(mot_mor_raw$cat)
+bnc_match_gram_tokens$cat <- ord_factor(mot_mor_raw$cat)
 
 plot_gram_tokens <- function(df, title) {
   ggplot(df, aes(x=cat, y=perc))+
@@ -177,7 +182,7 @@ plot_gram_tokens <- function(df, title) {
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         plot.title = element_text(size=8))+
-  scale_y_continuous(limits = c(0,35))
+  scale_y_continuous(limits = c(0,32.5))
 }
   
 plot1 <- plot_gram_tokens(mot_mor_raw, "Mothers")
@@ -198,9 +203,9 @@ grid.arrange(arrangeGrob(plot1,plot2,plot3,
 ### Utterance-final word categories
 
 ```{r gram_last_tokens, echo=FALSE, warning=FALSE}
-mot_mor_raw_last$cat %<>% factor(levels = mot_mor_raw_last$cat, ordered = T)
-bnc_all_last_gram_tokens$cat %<>% factor(levels = mot_mor_raw_last$cat, ordered = T)
-bnc_match_last_gram_tokens$cat %<>% factor(levels = mot_mor_raw_last$cat, ordered = T)
+mot_mor_raw_last$cat %<>% ord_factor()
+bnc_all_last_gram_tokens$cat <- ord_factor(mot_mor_raw_last$cat)
+bnc_match_last_gram_tokens$cat <- ord_factor(mot_mor_raw_last$cat)
 
 plot_gram_tokens <- function(df, title) {
   ggplot(df, aes(x=cat, y=perc))+
@@ -211,7 +216,7 @@ plot_gram_tokens <- function(df, title) {
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         plot.title = element_text(size=8))+
-  scale_y_continuous(limits = c(0,35))
+  scale_y_continuous(limits = c(0,32.5))
 }
   
 plot1 <- plot_gram_tokens(mot_mor_raw_last, "Mothers")
@@ -239,4 +244,94 @@ prop_table(mot_mor_raw_last, bnc_match_last_gram_tokens, "Word tokens") %>%
   kable()
 ```
 
+<br>
+
+### Phonotactic probability and neighbourhood density
+
+For these measures, plural common nouns were considered as singular.
+
+```{r pp_dens, echo=FALSE, warning=FALSE}
+plot_pp <- function(df, title) {
+  ggplot(df, aes(x=pp))+
+  geom_density()+
+  scale_y_continuous(limits = c(0,200)) +
+  scale_x_continuous(breaks = seq(0,0.03,0.010), limits = c(0,0.03)) +
+  labs(x = "Phonotactic probability", y = "Density") +
+  ggtitle(title)+
+  theme(axis.text.x = element_text(size=6),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(size=8))
+}
+  
+plot1 <- plot_pp(mot_on_pp_pn, "Mothers")
+plot2 <- plot_pp(bnc_match_ph, "BNC-match")
+plot3 <- plot_pp(bnc_all_ph, "BNC-all")
+
+grid.arrange(arrangeGrob(plot1,plot2,plot3,
+                         left = textGrob("Density", rot = 90, vjust = 1),
+                         bottom = textGrob("Phonotactic probability", rot = 0, vjust = 0.5),
+                         nrow = 1))
+```
+
+**Figure 4.** Density plots indicating the number of word types that occur for each phonotactic probability, for mothers, BNC-match, and BNC-all. 
+
+<br>
+
+```{r pn_dens, echo=FALSE, warning=FALSE}
+plot_pn <- function(df, title) {
+  ggplot(df, aes(x=pn))+
+  geom_bar(aes(y = (..count..)/sum(..count..))) + 
+  scale_y_continuous(labels=scales::percent, limits = c(0,0.25)) +
+  scale_x_continuous(breaks = seq(0,56,8)) +
+  labs(x = "Neighborhood density", y = "Word types (%)") +
+  ggtitle(title)+
+  theme(axis.text.x = element_text(size=6),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(size=8))
+}
+  
+plot1 <- plot_pn(mot_on_pp_pn, "Mothers")
+plot2 <- plot_pn(bnc_match_ph, "BNC-match")
+plot3 <- plot_pn(bnc_all_ph, "BNC-all")
+
+grid.arrange(arrangeGrob(plot1,plot2,plot3,
+                         left = textGrob("Word types (%)", rot = 90, vjust = 1),
+                         bottom = textGrob("Neighborhood density", rot = 0, vjust = 0.5),
+                         nrow = 1))
+```
+
+**Figure 5.** Percentage of word types by neighbourhood size, for mothers, BNC-match, and BNC-all. 
+
+<br>
+
+#### Table
+
+Kolmogorov-Smirnov analyses comparing phonotactic probability and neighbourhood density across mothers and BNC-match. 
+
+```{r echo=FALSE, warning=FALSE}
+ks.test(mot_on_pp_pn$pp, bnc_match_ph$pp) %>%
+  (function(x) {
+    tibble(D = x$statistic %>%
+             round(2), 
+           p = ifelse(x$p.value < 0.001, 
+                      "<0.001", 
+                      round(x$p.value,2)))
+  }) %>%
+  cbind(ks.test(mot_on_pp_pn$pn, bnc_match_ph$pn) %>%
+          (function(x) {
+            tibble(D = x$statistic %>%
+                     round(2), 
+                   p = ifelse(x$p.value < 0.001, 
+                              "<0.001", 
+                              round(x$p.value,2)))
+  })) %>%
+  (function(x) {
+    rownames(x) <- "Mothers vs. BNC-match"
+    x
+  }) %>%
+  kable()
+  
+```
 
