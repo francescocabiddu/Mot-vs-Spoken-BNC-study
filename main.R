@@ -596,3 +596,94 @@ bnc_all_last <- spok_bnc_txt_filtered %>%
 
 bnc_match_last_gram_tokens <- gram_bnc_tokens(bnc_match_last)
 bnc_all_last_gram_tokens <- gram_bnc_tokens(bnc_match_last)
+
+# word length, neighbourhood densiity and phonotactic probability
+word_length <- function(x) {
+  x %>%
+    mutate(syll_len = phon %>%
+             sapply(function(x) {
+               str_split(x, "_")
+             }) %>%
+             sapply(function(x) {
+               len <- sum(x %in% vowels)
+               names(len) <- paste(x, collapse = " ")
+               len
+             }),
+           phon_len = phon %>%
+             sapply(function(x) {
+               str_split(x, "_")
+             }) %>%
+             sapply(function(x) {
+               len <- length(x)
+               names(len) <- paste(x, collapse = " ")
+               len
+             }))
+}
+iphod_measure <- function(x, measure, name_measure, iphod_measure) {
+  measure <- enquo(measure)
+  
+  x %>%
+    mutate(!!name_measure := phon %>%
+             str_replace_all("_", ".") %>%
+             sapply(function(x) {
+               iphod[[iphod_measure]][fmatch(x, iphod$UnTrn)]
+             })) %>%
+    (function(x) {
+      na_df <- x %>%
+        filter(is.na(!!measure)) %>%
+        mutate(!!name_measure := phon %>%
+                 str_replace_all("_", ".") %>%
+                 sapply(function(x) {
+                   iphod_missing_bnc[[iphod_measure]][fmatch(x, iphod_missing_bnc$Input)]
+                 }))
+      
+      x %>%
+        filter(!is.na(!!measure)) %>%
+        rbind(na_df)
+    })
+}
+
+df_len <- function(df) {
+  df %>%
+    select(phon) %>%
+    (function(y) {
+      y[!duplicated(y$phon), ]
+    }) %>%
+    word_length()
+}
+
+df_ph <- function(df) {
+  df %>%
+    (function(x) {
+      x1 <- x %>%
+        filter(c5 != "NN2")
+      
+      x %>%
+        filter(c5 == "NN2") %>%
+        mutate(phon = spok_bnc_phon$phon[fmatch(hw, spok_bnc_phon$word)]) %>%
+        rbind(x1)
+    }) %>%
+    select(phon) %>%
+    (function(y) {
+      y[!duplicated(y$phon), ] %>%
+        (function(z) {
+          tibble(phon = z)
+        })
+    }) %>%
+    word_length() %>%
+    iphod_measure(pp, "pp", "unsBPAV") %>%
+    iphod_measure(pn, "pn", "unsDENS") %>%
+    mutate(pp = ifelse(phon_len == 1, NA, pp)) %>%
+    select(-syll_len, -phon_len)
+}
+
+bnc_match_len <- bnc_match %>%
+  df_len()
+bnc_all_len <- bnc_all %>%
+  df_len()
+
+# pp and ph with plurals phons converted to singular phons
+bnc_match_ph <- bnc_match %>%
+  df_ph()
+bnc_all_ph <- bnc_all %>%
+  df_ph()
