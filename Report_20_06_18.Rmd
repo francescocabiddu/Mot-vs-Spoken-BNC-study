@@ -335,3 +335,48 @@ ks.test(mot_on_pp_pn$pp, bnc_match_ph$pp) %>%
   
 ```
 
+<br>
+
+### Word length
+
+```{r echo=FALSE, warning=FALSE}
+ks_phon_len <- ks.test(mot_uni_len$len_phon, bnc_match_len$phon_len) %>%
+  (function(x) {
+    tibble(D = x$statistic %>%
+             round(2),
+           p = ifelse(x$p.value < 0.001, "<0.001", round(x$p.value,2)))
+  })
+```
+
+(see Figure 6, Kolmogorov-Smirnov *D* = `r ks_phon_len$D`, *p* `r ks_phon_len$p`)
+
+```{r len_phon, echo=FALSE, warning=FALSE}
+plot_phon_len <- function(df, title) {
+  ggplot(df, aes(x=len_phon))+
+  geom_bar(aes(y = (..count..)/sum(..count..))) + 
+  scale_y_continuous(labels=scales::percent, limits = c(0,0.25)) +
+  scale_x_continuous(limits = c(0,16), breaks = seq(0,16,2)) +
+  labs(x = "Phonemic length", y = "Word types (%)") +
+  ggtitle(title)+
+  theme(axis.text.x = element_text(size=6),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(size=8))
+}
+
+plot1 <- plot_phon_len(mot_uni_len, "Mothers")
+plot2 <- plot_phon_len(bnc_match_len %>%
+                           rename(len_phon = phon_len),
+                       "BNC-match")
+plot3 <- plot_phon_len(bnc_all_len %>%
+                           rename(len_phon = phon_len),
+                       "BNC-all")
+
+grid.arrange(arrangeGrob(plot1,plot2,plot3,
+                         left = textGrob("Word types (%)", rot = 90, vjust = 1),
+                         bottom = textGrob("Phonemic length", rot = 0, vjust = 0.5),
+                         nrow = 1))
+```
+
+**Figure 6.** Percentage of word types by phonemic length, for mothers, BNC-match, and BNC-all.
+
