@@ -1,6 +1,7 @@
 # load libraries
 lib <- c("magrittr", "tidyverse", 
-         "data.table", "fastmatch")
+         "data.table", "fastmatch",
+         "lme4")
 lapply(lib, require, character.only = TRUE)
 rm(lib)
 
@@ -361,18 +362,22 @@ spok_bnc_txt_filtered <- spok_bnc_txt %>%
 
 #### Spoken BNC sample ####
 # spok_bnc sample matching number of maternal tokens
+sample_text <- function(text, num_match) {
+  text %>%
+    sapply(nrow) %>%
+    sample() %>%
+    cumsum() %>%
+    (function(x) {
+      y <- x - num_match
+      y <- y[y > -1]
+      last_pos <- which(names(x) == names(y[1]))
+      x <- x[1:last_pos]
+      text[names(x)]
+    })
+}
+
 set.seed(1988)
-spok_bnc_ran <- spok_bnc_txt_filtered %>%
-  sapply(nrow) %>%
-  sample() %>%
-  cumsum() %>%
-  (function(x) {
-    y <- x - mot_tokens
-    y <- y[y > -1]
-    last_pos <- which(names(x) == names(y[1]))
-    x <- x[1:last_pos]
-    spok_bnc_txt_filtered[names(x)]
-  })
+spok_bnc_ran <- sample_text(spok_bnc_txt_filtered, mot_tokens)
 
 #### Spoken BNC measures ####
 # summary 
@@ -729,3 +734,55 @@ bncs_mot_comm_fil <- bncs_mot_comm %>%
   filter(word %in% cpwd$word) %>%
   arrange(word) %>%
   mutate(freq_cpwd=cpwd$freq)
+
+#### word frequency with BNC-all-raw ####
+# BNC-all-raw sample matching number of maternal tokens
+set.seed(2018)
+spok_bnc_ran_raw <- sample_text(spok_bnc_txt, mot_tokens)
+
+bnc_all_raw <- spok_bnc_txt %>%
+  rbindlist()
+
+bnc_match_raw <- spok_bnc_ran_raw %>%
+  rbindlist()
+
+# repeat the analysis
+bncs_mot_comm_raw <- tibble(word = Reduce(intersect, list(tolower(unlist(mot$string)),
+                                                      bnc_all_raw$word,
+                                                      bnc_match_raw$word))) %>%
+  (function(x) {
+    x %>%
+      mutate(freq = sapply(word, function(y) {
+        bnc_all_raw %>%
+          filter(word == y) %>%
+          nrow()
+      }),
+      rel_freq_mot = sapply(word, function(y) {
+        mot_string <- tibble(word = unlist(mot$string))
+        
+        raw_freq <- mot_string %>%
+          filter(tolower(word) == y) %>%
+          nrow()
+        
+        raw_freq/nrow(mot_string)
+      }),
+      rel_freq_bnc_sub = sapply(word, function(y) {
+        raw_freq <- bnc_match_raw %>%
+          filter(tolower(word) == y) %>%
+          nrow()
+        
+        raw_freq/nrow(bnc_match_raw)
+      }),
+      rel_freq_bnc = freq/nrow(bnc_all_raw))
+  })
+
+write.table(bncs_mot_comm_raw$word, "bncs_mot_comm_raw.txt", 
+            sep = "\t", quote = F, row.names = F, col.names = F)
+cpwd_raw <- "bncs_mot_comm_raw_cpwd_freq.txt" %>%
+  read_tsv()
+
+# filter bncs for words found in cpwd
+bncs_mot_comm_raw_fil <- bncs_mot_comm_raw %>%
+  filter(word %in% cpwd_raw$word) %>%
+  arrange(word) %>%
+  mutate(freq_cpwd=cpwd_raw$freq)
