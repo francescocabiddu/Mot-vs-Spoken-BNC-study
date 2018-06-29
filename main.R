@@ -694,7 +694,7 @@ bnc_all_ph <- bnc_all %>%
   df_ph()
 
 #### CIs ####
-# CIs of proportion through binomial logistic regression
+# CIs of proportion through logistic regression
 CI_prop <- function(df_mot, df_bnc_match, gram_cat) {
   tibble(corpus_ = c("Mothers",'BNC-match'),
          count = c(df_mot %>%
@@ -739,3 +739,23 @@ CI_table <- function(df_mot, df_bnc_match) {
                `97.5 %` = `97.5 %`*100)
     })
 }
+
+# CIs KS statistic
+boot_ci_KS <- function(x,y, iter = 100000) {
+  KS = c()
+  for (i in seq(iter)) {
+    M <- ks.test(sample(x, replace=T),
+                 sample(y, replace=T))
+    KS <- c(KS, M$statistic)
+  }
+  quantile(KS,probs=c(.025,.975)) 
+}
+
+KS_CI <- boot_ci_KS(mot_on_pp_pn$pp, bnc_match_ph$pp) %>%
+  rbind(boot_ci_KS(mot_on_pp_pn$pn, bnc_match_ph$pn) %>%
+          rbind(boot_ci_KS(mot_uni_len$len_phon, bnc_match_len$phon_len) )) %>%
+  as.data.frame() %>%
+  mutate(Variable = c("Phonotactic probability", 
+                      "Neighborhood density",
+                      "Phonemic length")) %>%
+  select(Variable, `2.5%`, `97.5%`)
