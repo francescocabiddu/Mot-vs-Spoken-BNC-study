@@ -1,7 +1,6 @@
 # load libraries
 lib <- c("magrittr", "tidyverse", 
-         "data.table", "fastmatch",
-         "lme4")
+         "data.table", "fastmatch")
 lapply(lib, require, character.only = TRUE)
 rm(lib)
 
@@ -693,3 +692,50 @@ bnc_match_ph <- bnc_match %>%
   df_ph()
 bnc_all_ph <- bnc_all %>%
   df_ph()
+
+#### CIs ####
+# CIs of proportion through binomial logistic regression
+CI_prop <- function(df_mot, df_bnc_match, gram_cat) {
+  tibble(corpus_ = c("Mothers",'BNC-match'),
+         count = c(df_mot %>%
+                     (function(x) {
+                       x$freq[which(x$cat == gram_cat)]
+                     }), 
+                   df_bnc_match %>%
+                     (function(x) {
+                       x$freq[which(x$cat == gram_cat)]
+                     })),
+         total = c((( sum(df_mot$freq) / (df_mot$perc %>% sum()) ) * 100 ) %>%
+                     round(0) %>%
+                     as.integer(), 
+                   (( sum(df_bnc_match$freq) / (df_bnc_match$perc %>% sum()) ) * 100 ) %>%
+                     round(0) %>%
+                     as.integer())) %>%
+    (function(x) {
+      M <- glm(cbind(count, total-count) ~ 0 + corpus_,
+               data = x,
+               family = binomial)
+      
+      ilogit <- plogis # inverse logit
+      
+      round(ilogit(confint(M)),5)
+    }) %>%
+    as_tibble() %>%
+    mutate(Corpus = c("BNC-match", "Mothers"),
+           `Word category` = gram_cat) %>%
+    select(Corpus, `Word category`, `2.5 %`, `97.5 %`)
+}
+
+CI_table <- function(df_mot, df_bnc_match) {
+  df_mot %>%
+    (function(x) {
+      CI_df <- tibble()
+      for (cats in x$cat) {
+        CI_df %<>%
+          rbind(CI_prop(df_mot, df_bnc_match, cats))
+      }
+      CI_df %>%
+        mutate(`2.5 %` = `2.5 %`*100,
+               `97.5 %` = `97.5 %`*100)
+    })
+}
