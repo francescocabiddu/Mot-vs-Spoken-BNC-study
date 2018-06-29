@@ -398,3 +398,13 @@ grid.arrange(arrangeGrob(plot1,plot2,plot3,
 ```
 
 **Figure 6.** Percentage of word types by phonemic length, for mothers, BNC-match, and BNC-all.
+
+<br>
+
+#### Table
+
+95% bootstrapped confidence intervals (*N*=100000) of Kolmogorov-Smirnov statistic (Mothers vs BNC-match) for phonotactic probability, neighborhood density and phonemic length.
+
+```{r echo=FALSE}
+KS_CI %>% kable()
+```
