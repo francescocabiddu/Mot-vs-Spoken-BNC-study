@@ -91,14 +91,6 @@ For word types (see Figure 1 below), plural common nouns and verbs were consider
 <br>
 
 ```{r gram_types, echo=FALSE, warning=FALSE}
-ord_factor <- function(mot_cat) {
-  mot_cat %>% factor(levels = mot_cat, ordered = T)
-}
-
-mot_uni_mor_raw$cat %<>% ord_factor()
-bnc_all_ort_types$cat <- ord_factor(mot_uni_mor_raw$cat)
-bnc_match_ort_types$cat <- ord_factor(mot_uni_mor_raw$cat)
-
 plot_gram_types <- function(df, title) {
   ggplot(df, aes(x=cat, y=perc))+
   geom_bar(position="dodge",stat="identity")+
@@ -108,7 +100,8 @@ plot_gram_types <- function(df, title) {
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         plot.title = element_text(size=8))+
-  scale_y_continuous(limits = c(0,62.5))
+  scale_y_continuous(limits = c(0,62.5)) +
+  scale_x_discrete(limits = mot_uni_mor_raw$cat)
 }
 
 plot1 <- plot_gram_types(mot_uni_mor_raw, "Mothers")
@@ -165,14 +158,20 @@ prop_table(mot_uni_mor_raw, bnc_match_ort_types, "Word types") %>%
   kable()
 ```
 
+<br>
+
+#### Table
+
+95% confidence intervals for grammatical category proportions (**Word types**) through logistic regression.
+
+```{r echo=FALSE, message=FALSE}
+CI_table(mot_uni_mor_raw, bnc_match_ort_types) %>%
+  kable()
+```
 
 <br>
 
 ```{r gram_tokens, echo=FALSE, warning=FALSE}
-mot_mor_raw$cat %<>% ord_factor()
-bnc_all_gram_tokens$cat <- ord_factor(mot_mor_raw$cat)
-bnc_match_gram_tokens$cat <- ord_factor(mot_mor_raw$cat)
-
 plot_gram_tokens <- function(df, title) {
   ggplot(df, aes(x=cat, y=perc))+
   geom_bar(position="dodge",stat="identity")+
@@ -182,7 +181,8 @@ plot_gram_tokens <- function(df, title) {
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         plot.title = element_text(size=8))+
-  scale_y_continuous(limits = c(0,32.5))
+  scale_y_continuous(limits = c(0,32.5)) +
+    scale_x_discrete(limits = mot_mor_raw$cat)
 }
   
 plot1 <- plot_gram_tokens(mot_mor_raw, "Mothers")
@@ -200,13 +200,20 @@ grid.arrange(arrangeGrob(plot1,plot2,plot3,
 
 <br>
 
+#### Table
+
+95% confidence intervals for grammatical category proportions (**Word tokens**) through logistic regression.
+
+```{r echo=FALSE, message=FALSE}
+CI_table(mot_mor_raw, bnc_match_gram_tokens) %>%
+  kable()
+```
+
+<br>
+
 ### Utterance-final word categories
 
 ```{r gram_last_tokens, echo=FALSE, warning=FALSE}
-mot_mor_raw_last$cat %<>% ord_factor()
-bnc_all_last_gram_tokens$cat <- ord_factor(mot_mor_raw_last$cat)
-bnc_match_last_gram_tokens$cat <- ord_factor(mot_mor_raw_last$cat)
-
 plot_gram_tokens <- function(df, title) {
   ggplot(df, aes(x=cat, y=perc))+
   geom_bar(position="dodge",stat="identity")+
@@ -216,7 +223,8 @@ plot_gram_tokens <- function(df, title) {
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         plot.title = element_text(size=8))+
-  scale_y_continuous(limits = c(0,32.5))
+  scale_y_continuous(limits = c(0,32.5)) +
+    scale_x_discrete(limits = mot_mor_raw_last$cat)
 }
   
 plot1 <- plot_gram_tokens(mot_mor_raw_last, "Mothers")
@@ -241,6 +249,17 @@ Chi-squared analyses comparing the mothers and BNC-match for number of nouns, pr
 ```{r echo=FALSE, warning=FALSE}
 prop_table(mot_mor_raw_last, bnc_match_last_gram_tokens, "Word tokens") %>%
   slice(c(1,5,2,4,3)) %>%
+  kable()
+```
+
+<br>
+
+#### Table
+
+95% confidence intervals for grammatical category proportions (**Word tokens**) through logistic regression.
+
+```{r echo=FALSE, message=FALSE}
+CI_table(mot_mor_raw_last, bnc_match_last_gram_tokens) %>%
   kable()
 ```
 
