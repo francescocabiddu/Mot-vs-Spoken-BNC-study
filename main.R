@@ -1,6 +1,7 @@
 # load libraries
 lib <- c("magrittr", "tidyverse", 
-         "data.table", "fastmatch")
+         "data.table", "fastmatch",
+         "beepr", "mailR")
 lapply(lib, require, character.only = TRUE)
 rm(lib)
 
@@ -751,6 +752,7 @@ boot_ci_KS <- function(x,y, iter = 100000) {
   quantile(KS,probs=c(.025,.975)) 
 }
 
+set.seed(2075)
 KS_CI <- boot_ci_KS(mot_on_pp_pn$pp, bnc_match_ph$pp) %>%
   rbind(boot_ci_KS(mot_on_pp_pn$pn, bnc_match_ph$pn) %>%
           rbind(boot_ci_KS(mot_uni_len$len_phon, bnc_match_len$phon_len) )) %>%
@@ -759,3 +761,109 @@ KS_CI <- boot_ci_KS(mot_on_pp_pn$pp, bnc_match_ph$pp) %>%
                       "Neighborhood density",
                       "Phonemic length")) %>%
   select(Variable, `2.5%`, `97.5%`)
+
+#### word frequency ####
+# import words in full bnc
+bnc_txt_raw <- "/Users/francesco/Documents/BNC/texts\ txt" %>%
+  (function(x) {
+    spoken_paths <- list.files(x, pattern = "txt$")
+    texts <- list.files(x, pattern = "txt$", recursive = TRUE)
+    
+    texts[! texts %in% spoken_paths] %>%
+      str_replace("^", paste("/Users/francesco/Documents/BNC/texts\ txt", "/", sep = ""))
+  }) %>%
+  sapply(function(x) {
+    read.delim(x, header = F, stringsAsFactors = F)
+  }) %>%
+  unlist()
+
+# extract words from bnc raw texts
+words_bnc <- function(x) {
+  x %>%
+    str_extract_all(" pos=[^>]*>[^<]*<") %>%
+    unlist() %>%
+    str_extract_all(">[^< ]*") %>%
+    unlist() %>%
+    str_replace_all(">", "") %>%
+    tolower()
+}
+
+bnc_tokens <- split(1:length(bnc_txt_raw), 
+                    ceiling(seq_along(1:length(bnc_txt_raw))/10000)) %>%
+  sapply(function(x) {
+    words_bnc(bnc_txt_raw[x])
+  })
+
+# create a frequency table
+bnc_tokens_freq <- bnc_tokens %>%
+  sapply(table) %>%
+  lapply(function(x) {
+    tibble(word = names(x), freq = as.numeric(x))
+  }) %>%
+  rbindlist() %>%
+  (function(x) {
+    tapply(x$freq, INDEX=list(x$word),FUN=sum)
+  }) %>%
+  (function(x) {
+    tibble(word = names(x), freq = as.numeric(x))
+  })
+  
+# store large bnc files
+save(bnc_tokens, bnc_txt_raw, file = "bnc_full_large_files.RData")
+
+# word frequency with BNC-all-raw
+# BNC-all-raw sample matching number of maternal tokens
+set.seed(2018)
+spok_bnc_ran_raw <- sample_text(spok_bnc_txt, mot_tokens)
+
+bnc_all_raw <- spok_bnc_txt %>%
+  rbindlist()
+
+bnc_match_raw <- spok_bnc_ran_raw %>%
+  rbindlist()
+
+# repeat the analysis
+bncs_mot_comm_raw <- tibble(word = Reduce(intersect, list(tolower(unlist(mot$string)),
+                                                          bnc_all_raw$word,
+                                                          bnc_match_raw$word))) %>%
+  (function(x) {
+      x %>%
+          mutate(freq = sapply(word, function(y) {
+              bnc_all_raw %>%
+                filter(word == y) %>%
+                  nrow()
+            }),
+            rel_freq_mot = sapply(word, function(y) {
+                mot_string <- tibble(word = unlist(mot$string))
+                
+                  raw_freq <- mot_string %>%
+                      filter(tolower(word) == y) %>%
+                      nrow()
+                  
+                    raw_freq/nrow(mot_string)
+                }),
+            rel_freq_bnc_sub = sapply(word, function(y) {
+                raw_freq <- bnc_match_raw %>%
+                    filter(tolower(word) == y) %>%
+                    nrow()
+                
+                  raw_freq/nrow(bnc_match_raw)
+              }),
+            rel_freq_bnc = freq/nrow(bnc_all_raw))
+    })
+
+write.table(bncs_mot_comm_raw$word, "bncs_mot_comm_raw.txt", 
+                         sep = "\t", quote = F, row.names = F, col.names = F)
+cpwd_raw <- "bncs_mot_comm_raw_cpwd_freq.txt" %>%
+  read_tsv()
+
+# filter bncs for words found in cpwd
+bncs_mot_comm_raw_fil <- bncs_mot_comm_raw %>%
+  filter(word %in% cpwd_raw$word) %>%
+  arrange(word) %>%
+  mutate(freq_cpwd=cpwd_raw$freq)
+
+# adjust ranking frequency for Full BNC
+bncs_mot_comm_raw_fil %<>%
+  mutate(freq_old = freq,
+         freq = bnc_tokens_freq$freq[fmatch(word, bnc_tokens_freq$word)])
