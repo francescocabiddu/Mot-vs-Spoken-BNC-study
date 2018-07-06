@@ -408,3 +408,64 @@ grid.arrange(arrangeGrob(plot1,plot2,plot3,
 ```{r echo=FALSE}
 KS_CI %>% kable()
 ```
+
+<br>
+
+### Word frequency
+
+For this measure, to include all types in Spoken BNC (see Table 1. for difference in types between BNC-all-raw and BNC-all) a new random sample from BNC-all-raw was taken and BNC-all-raw was used as full Spoken BNC. 
+Word rank was assigned within the **BNC (written + spoken)** and CPWD.
+
+```{r word_freq, echo=FALSE, warning=FALSE, message=FALSE,fig.width=16, fig.height=9}
+bncs_mot_comm_raw_fil_1 <- bncs_mot_comm_raw_fil %>%
+  select(-freq_cpwd) %>%
+  arrange(desc(freq)) %>%
+  mutate(rank = 1:nrow(bncs_mot_comm_raw_fil)) %>%
+  gather(dataset, rel_freq, c(rel_freq_mot, rel_freq_bnc_sub, rel_freq_bnc)) %>%
+  group_by(dataset) %>%
+  mutate(rel_freq_cum = cumsum(rel_freq)) 
+
+bncs_mot_comm_raw_fil_2 <- bncs_mot_comm_raw_fil %>%
+  select(-freq) %>%
+  arrange(desc(freq_cpwd)) %>%
+  mutate(rank = 1:nrow(bncs_mot_comm_raw_fil)) %>%
+  gather(dataset, rel_freq, c(rel_freq_mot, rel_freq_bnc_sub, rel_freq_bnc)) %>%
+  group_by(dataset) %>%
+  mutate(rel_freq_cum = cumsum(rel_freq))
+
+plot1 <- ggplot(bncs_mot_comm_raw_fil_1, aes(x=log(rank), y=rel_freq_cum, fill=dataset))+
+  geom_point(colour="grey")+
+  geom_smooth(size=1, colour="black", aes(linetype = dataset), method = "loess") +
+  scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
+  ggtitle("BNC")+
+  theme(axis.text=element_text(size=18),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(size=20),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        legend.key.size = unit(1.5, "cm"))+  
+  scale_linetype_manual("Dataset", labels = c("BNC-all","BNC-match","Mothers"),values=c("dotted", "longdash", "solid"))+
+  guides(fill=FALSE, alpha=F)
+
+plot2 <- ggplot(bncs_mot_comm_raw_fil_2, aes(x=log(rank), y=rel_freq_cum, fill=dataset))+
+  geom_point(colour="grey")+
+  geom_smooth(size=1, colour="black", aes(linetype = dataset), method = "loess") +
+  scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
+  ggtitle("CPWD")+
+  theme(axis.text=element_text(size=18),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        plot.title = element_text(size=20),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        legend.key.size = unit(1.5, "cm"))+  
+  scale_linetype_manual("Dataset", labels = c("BNC-all","BNC-match","Mothers"),values=c("dotted", "longdash", "solid"))+
+  guides(fill=FALSE, alpha=F)
+
+
+grid_arrange_shared_legend(plot1, plot2, position = "right", 
+                           x_title = "Word rank (log)", y_title = "Cumulative proportion of tokens",
+                           x_size = 25, y_size = 25,
+                           widths1 = 3.5, widths2 = 0.5, hjust1 = 0.8, vjust1 = 0.3)
+```
