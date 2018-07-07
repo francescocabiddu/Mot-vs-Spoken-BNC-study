@@ -10,7 +10,8 @@ output:
 Date: `r Sys.Date()`
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE, include=FALSE}
-lib <- c("tidyverse", "magrittr", "knitr", "gridExtra", "grid")
+lib <- c("tidyverse", "magrittr", "knitr", 
+         "gridExtra", "grid", "mgcv")
 lapply(lib, require, character.only = TRUE)
 load(file="ws_report.RData")
 ```
@@ -423,7 +424,8 @@ bncs_mot_comm_raw_fil_1 <- bncs_mot_comm_raw_fil %>%
   mutate(rank = 1:nrow(bncs_mot_comm_raw_fil)) %>%
   gather(dataset, rel_freq, c(rel_freq_mot, rel_freq_bnc_sub, rel_freq_bnc)) %>%
   group_by(dataset) %>%
-  mutate(rel_freq_cum = cumsum(rel_freq)) 
+  mutate(rel_freq_cum = cumsum(rel_freq))  %>%
+  rename(corpus = dataset)
 
 bncs_mot_comm_raw_fil_2 <- bncs_mot_comm_raw_fil %>%
   select(-freq) %>%
@@ -431,11 +433,12 @@ bncs_mot_comm_raw_fil_2 <- bncs_mot_comm_raw_fil %>%
   mutate(rank = 1:nrow(bncs_mot_comm_raw_fil)) %>%
   gather(dataset, rel_freq, c(rel_freq_mot, rel_freq_bnc_sub, rel_freq_bnc)) %>%
   group_by(dataset) %>%
-  mutate(rel_freq_cum = cumsum(rel_freq))
+  mutate(rel_freq_cum = cumsum(rel_freq)) %>%
+  rename(corpus = dataset)
 
-plot1 <- ggplot(bncs_mot_comm_raw_fil_1, aes(x=log(rank), y=rel_freq_cum, fill=dataset))+
+plot1 <- ggplot(bncs_mot_comm_raw_fil_1, aes(x=log(rank), y=rel_freq_cum, fill=corpus))+
   geom_point(colour="grey")+
-  geom_smooth(size=1, colour="black", aes(linetype = dataset), method = "loess") +
+  geom_smooth(size=1, colour="black", aes(linetype = corpus)) +
   scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
   ggtitle("BNC")+
   theme(axis.text=element_text(size=18),
@@ -445,12 +448,12 @@ plot1 <- ggplot(bncs_mot_comm_raw_fil_1, aes(x=log(rank), y=rel_freq_cum, fill=d
         legend.text = element_text(size = 15),
         legend.title = element_text(size = 15),
         legend.key.size = unit(1.5, "cm"))+  
-  scale_linetype_manual("Dataset", labels = c("BNC-all","BNC-match","Mothers"),values=c("dotted", "longdash", "solid"))+
+  scale_linetype_manual("Corpus", labels = c("BNC-all","BNC-match","Mothers"),values=c("dotted", "longdash", "solid"))+
   guides(fill=FALSE, alpha=F)
 
-plot2 <- ggplot(bncs_mot_comm_raw_fil_2, aes(x=log(rank), y=rel_freq_cum, fill=dataset))+
+plot2 <- ggplot(bncs_mot_comm_raw_fil_2, aes(x=log(rank), y=rel_freq_cum, fill=corpus))+
   geom_point(colour="grey")+
-  geom_smooth(size=1, colour="black", aes(linetype = dataset), method = "loess") +
+  geom_smooth(size=1, colour="black", aes(linetype = corpus)) +
   scale_y_continuous(labels=scales::percent, limits = c(0,1)) +
   ggtitle("CPWD")+
   theme(axis.text=element_text(size=18),
@@ -460,7 +463,7 @@ plot2 <- ggplot(bncs_mot_comm_raw_fil_2, aes(x=log(rank), y=rel_freq_cum, fill=d
         legend.text = element_text(size = 15),
         legend.title = element_text(size = 15),
         legend.key.size = unit(1.5, "cm"))+  
-  scale_linetype_manual("Dataset", labels = c("BNC-all","BNC-match","Mothers"),values=c("dotted", "longdash", "solid"))+
+  scale_linetype_manual("Corpus", labels = c("BNC-all","BNC-match","Mothers"),values=c("dotted", "longdash", "solid"))+
   guides(fill=FALSE, alpha=F)
 
 
@@ -468,4 +471,106 @@ grid_arrange_shared_legend(plot1, plot2, position = "right",
                            x_title = "Word rank (log)", y_title = "Cumulative proportion of tokens",
                            x_size = 25, y_size = 25,
                            widths1 = 3.5, widths2 = 0.5, hjust1 = 0.8, vjust1 = 0.3)
+```
+
+<br>
+
+A Generalized Additive Model (GAM; nonlinear approach) is used to compare word frequency patterns. In GAM, smooth functions are incorporated of the predictor variables allowing for nonlinear relationships between the covariates and the target variable (see [Clark, 2018](https://m-clark.github.io/generalized-additive-models/)). For this case, the factor variable "corpus" (BNC-match/Mothers) is included in the model allowing to separate smooths for each level; the factor variable is also treated as fixed predictor because the smooths are centered (see [Specifying generalized additive models](https://goo.gl/drrc7H)). The covariate "log(word rank)" is smoothed over. The GAM models considered were specified within the R environment as follows:  
+
+*model = mgvk::gam(tokens_cumulative_proportion ~ corpus + s(log(word_rank), by = corpus), data = BNC/CPWD)*.  
+
+Below we can see the smooth components of the fitted GAM models:
+
+```{r echo = FALSE}
+bncs_bnc <-  bncs_mot_comm_raw_fil_1 %>%
+  ungroup() %>%
+  filter(corpus != "rel_freq_bnc") %>%
+  mutate(corpus = factor(corpus)) 
+
+bncs_cpwd <- bncs_mot_comm_raw_fil_2 %>%
+  ungroup() %>%
+  filter(corpus != "rel_freq_bnc") %>%
+  mutate(corpus = factor(corpus))
+
+gam_models <- list(
+  mod_bnc1 = gam(rel_freq_cum ~ s(log(rank)), data = bncs_bnc),
+  mod_bnc2 = gam(rel_freq_cum ~ corpus + s(log(rank), by = corpus), data = bncs_bnc),
+  mod_cpwd1 = gam(rel_freq_cum ~ s(log(rank)), data = bncs_cpwd),
+  mod_cpwd2 = gam(rel_freq_cum ~ corpus + s(log(rank), by = corpus), data = bncs_cpwd)
+) %>%
+  lapply(function(x) list(model = x, summary = summary(x)))
+```
+
+```{r echo= FALSE, results='hide', include=FALSE}
+plots <- list(
+  p1 <- plot(gam_models$mod_bnc2$model),
+  p2 <- plot(gam_models$mod_cpwd2$model)
+)
+```
+
+```{r echo=FALSE}
+par(mfrow=c(2,2))
+plot(gam_models$mod_bnc2$model, select=1, 
+     xlab = "Word rank(log)", ylab = plots[[1]][[1]]$ylab %>%
+       str_replace("corpusrel_freq_bnc_sub", "BNC-match"),
+     main = "BNC")
+plot(gam_models$mod_bnc2$model, select=2, 
+     xlab = "Word rank(log)", ylab = plots[[1]][[2]]$ylab %>%
+       str_replace("corpusrel_freq_mot", "Mothers"),
+     main = "BNC")
+plot(gam_models$mod_cpwd2$model, select=1, 
+     xlab = "Word rank(log)", ylab = plots[[2]][[1]]$ylab %>%
+       str_replace("corpusrel_freq_bnc_sub", "BNC-match"),
+     main="CPWD")
+plot(gam_models$mod_cpwd2$model, select=2, 
+     xlab = "Word rank(log)", ylab = plots[[2]][[2]]$ylab %>%
+       str_replace("corpusrel_freq_mot", "Mothers"),
+     main="CPWD")
+```
+
+<br>
+
+To compare word frequency based on BNC and CPWD, for each model (BNC or CPWD) we compare a base model which contains only the "log(word_rank)" covariate to a model that also includes the factor "corpus" variable. The following tables show different indexes such as *R^2 adjusted*, *GCV* (generalized cross validation score which can be taken as an estimate of the mean square prediction error, used it similar to AIC as a comparative measure to choose among different models, with lower being better), *AIC*, *BIC*, *Deviance* (deviance reduction attributed to this term), *Pr(>Chi)* (Chi-squared test p value). Although we can see from the p values a significant change in the model fit for both BNC and CPWD (related to the large sample size, *N*=`r bncs_bnc %>% nrow()`), we can see that all comparative indexes indicate a greater contribution of the second model in the case of CPWD, capturing the greater difference in word frequency between Mothers and BNC-match when assigning word rank within CPWD. 
+
+<br>
+
+#### Table
+
+```{r echo=FALSE}
+gam_mod_table <- tibble(Model = c("BNC [log(rank)]", "BNC [log(rank), corpus]", 
+                                  "CPWD [log(rank)]", "CPWD [log(rank), corpus]"),
+                        `R^2 (adj)` = c(gam_models %>% sapply(function(x) x$summary$r.sq)),
+                        GCV = c(gam_models %>% sapply(function(x) x$summary$sp.criterion))) %>%
+  cbind(AIC(gam_models$mod_bnc1$model, gam_models$mod_bnc2$model) %>%
+          rbind(AIC(gam_models$mod_cpwd1$model, gam_models$mod_cpwd2$model))) %>%
+  cbind(BIC(gam_models$mod_bnc1$model, gam_models$mod_bnc2$model) %>%
+          rbind(BIC(gam_models$mod_cpwd1$model, gam_models$mod_cpwd2$model)) %>%
+          select(-df)) %>%
+  (function(x) {
+    row.names(x) <- NULL
+    x
+  }) 
+
+gam_mod_table %>% kable()
+```
+
+<br>
+
+#### Table
+
+```{r echo=FALSE}
+gam_mod_table %>%
+  select(Model) %>%
+  cbind(anova(gam_models$mod_bnc1$model, 
+              gam_models$mod_bnc2$model,
+              test = "Chisq") %>% as_tibble() %>%
+          rbind(anova(gam_models$mod_cpwd1$model, 
+                      gam_models$mod_cpwd2$model,
+                      test = "Chisq") %>% as_tibble())) %>%
+  (function(x) {
+    row.names(x) <- NULL
+    x
+  }) %>%
+  mutate(`Pr(>Chi)` = ifelse(`Pr(>Chi)` < 0.001, 0.001, `Pr(>Chi)`)) %>%
+  kable()
 ```
